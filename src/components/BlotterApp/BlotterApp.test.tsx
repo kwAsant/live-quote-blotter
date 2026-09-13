@@ -1,7 +1,6 @@
 /**
  * @jest-environment jsdom
  */
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { BlotterApp } from './BlotterApp';
@@ -69,7 +68,7 @@ describe('BlotterApp Integration Tests', () => {
     jest.useRealTimers(); // clean up and restore standard system clock behavior after each test pass
   });
 
-  test('1. RFQs render after loading, and 3. Accept button disabled state is correct', () => {
+  test('RFQs render after loading, and 3. Accept button disabled state is correct', () => {
     render(<BlotterApp />);
 
     expect(screen.getByText('EUR/USD', { selector: 'td' })).toBeInTheDocument();
@@ -80,17 +79,20 @@ describe('BlotterApp Integration Tests', () => {
     expect(buttons[1]).toBeDisabled();     // GBP/USD: Expired
   });
 
-  test('2. "Actionable only" filter cleanly isolates active quotes', () => {
-    render(<BlotterApp />);
+  test('"Actionable only" filter cleanly isolates active quotes', () => {
+      render(<BlotterApp />);
 
-    const checkbox = screen.getByLabelText(/Actionable Quotes Only/i);
-    fireEvent.click(checkbox);
+      const checkbox = screen.getByRole('checkbox', {
+          name: /Actionable only/i,
+      });
 
-    expect(screen.getByText('EUR/USD', { selector: 'td' })).toBeInTheDocument();
-    expect(screen.queryByText('GBP/USD', { selector: 'td' })).not.toBeInTheDocument();
+      fireEvent.click(checkbox);
+
+      expect(screen.getByText('EUR/USD', { selector: 'td' })).toBeInTheDocument();
+      expect(screen.queryByText('GBP/USD', { selector: 'td' })).not.toBeInTheDocument();
   });
 
-  test('4. Accepting a tradeable quote opens the confirmation modal', async () => {
+  test('Accepting a tradeable quote opens the confirmation modal', async () => {
     render(<BlotterApp />);
 
     const acceptButtons = screen.getAllByRole('button', { name: /Accept/i });
@@ -99,7 +101,7 @@ describe('BlotterApp Integration Tests', () => {
     expect(await screen.findByText('Confirm Trade Execution')).toBeInTheDocument();
   });
 
-  test('5. Confirming a trade calls acceptQuote and shows a success notification', async () => {
+  test('Confirming a trade calls acceptQuote and shows a success notification', async () => {
     mockedAcceptQuote.mockResolvedValue({
       success: true,
       rfqId: 'rfq_1',
@@ -121,7 +123,7 @@ describe('BlotterApp Integration Tests', () => {
     // useRfqStream.test.ts for the test that proves that reactive update.
   });
 
-  test('7. Sorting by currency pair changes row order', () => {
+  test('Sorting by currency pair changes row order', () => {
     render(<BlotterApp />);
 
     const rowsBefore = screen.getAllByRole('row').slice(1); // skip header row

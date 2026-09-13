@@ -47,7 +47,7 @@ describe('useRfqStream', () => {
     jest.useRealTimers();        
   });
 
-  test('5. A successful accept (status update pushed via the stream) updates the RFQ', async () => {
+  test('A successful accept (status update pushed via the stream) updates the RFQ', async () => {
     const { result } = renderHook(() => useRfqStream());
 
     await waitFor(() => expect(result.current.loading).toBe(false));

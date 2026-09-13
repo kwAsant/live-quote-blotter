@@ -163,7 +163,7 @@ export const BlotterApp: React.FC = () => {
 
         // Sort
         result.sort((a, b) => {
-            let comparison = 0;
+        let comparison: number;
 
             switch (sortField) {
                 case 'lastUpdated': {
@@ -184,8 +184,7 @@ export const BlotterApp: React.FC = () => {
                     break;
 
                 case 'currencyPair':
-                    comparison =
-                        a.currencyPair.localeCompare(b.currencyPair);
+                    comparison = a.currencyPair.localeCompare(b.currencyPair);
                     break;
 
                 default:

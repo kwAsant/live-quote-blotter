@@ -172,17 +172,6 @@ const applyUpdateToStore = (update: QuoteUpdate): void => {
 	};
 };
 
-const runNextScenario = (): void => {
-	const scenario = UPDATE_SCENARIOS[scenarioIndex % UPDATE_SCENARIOS.length];
-	scenarioIndex += 1;
-	const result = scenario();
-	const updates = Array.isArray(result) ? result : [result];
-	updates.forEach((u) => {
-		applyUpdateToStore(u);
-		emit(u);
-	});
-};
-
 const processRandomLifecycleEvent = (): void => {
     const candidates = rfqStore.filter(
         (rfq) =>
@@ -247,95 +236,6 @@ const createAndEmitRfq = (): void => {
 
 	emit(event);
 };
-
-
-/** Scripted update scenarios — includes out-of-order delivery. */
-const UPDATE_SCENARIOS: Array<() => QuoteUpdate | QuoteUpdate[]> = [
-	() => ({
-		rfqId: 'rfq-001',
-		bid: 0.118,
-		offer: 0.122,
-		status: 'Quoted',
-		lastUpdated: new Date().toISOString(),
-		sequenceNumber: nextSequence('rfq-001'),
-	}),
-	() => ({
-		rfqId: 'rfq-003',
-		offer: 0.099,
-		status: 'Quoted',
-		lastUpdated: new Date().toISOString(),
-		sequenceNumber: nextSequence('rfq-003'),
-	}),
-	// Out-of-order pair: higher sequence arrives before lower
-	() => {
-		const rfqId = 'rfq-002';
-		const seq12 = nextSequence('rfq-002');
-		const seq11 = seq12 - 1;
-		const t = new Date().toISOString();
-		return [
-			{
-				rfqId,
-				bid: 0.125,
-				offer: 0.129,
-				status: 'Quoted',
-				lastUpdated: t,
-				sequenceNumber: seq12,
-			},
-			{
-				rfqId,
-				bid: 0.1,
-				offer: 0.2,
-				status: 'Quoted',
-				lastUpdated: t,
-				sequenceNumber: seq11,
-			},
-		];
-	},
-	() => ({
-		rfqId: 'rfq-005',
-		bid: 0.103,
-		offer: 0.107,
-		status: 'Quoted',
-		lastUpdated: new Date().toISOString(),
-		sequenceNumber: nextSequence('rfq-005'),
-	}),
-	() => ({
-		rfqId: 'rfq-007',
-		bid: 0.088,
-		offer: 0.092,
-		status: 'Quoted',
-		lastUpdated: new Date().toISOString(),
-		sequenceNumber: nextSequence('rfq-007'),
-	}),
-	() => ({
-		rfqId: 'rfq-002',
-		bid: 0.124,
-		offer: 0.128,
-		status: 'Quoted',
-		lastUpdated: new Date().toISOString(),
-		sequenceNumber: nextSequence('rfq-002'),
-	}),
-	// Unknown RFQ — not in initial fetchRfqs() payload
-	() => ({
-		rfqId: 'rfq-999',
-		bid: 0.051,
-		offer: 0.054,
-		status: 'Quoted',
-		lastUpdated: new Date().toISOString(),
-		sequenceNumber: 1,
-	}),
-	// Delayed quote after accept — if rfq-002 was accepted, should not regress to Quoted in UI
-	() => ({
-		rfqId: 'rfq-002',
-		bid: 0.131,
-		offer: 0.136,
-		status: 'Quoted',
-		lastUpdated: new Date().toISOString(),
-		sequenceNumber: nextSequence('rfq-002'),
-	}),
-];
-
-let scenarioIndex = 0;
 
 const runSimulationTick = (): void => {
     // New RFQ arrives
@@ -492,7 +392,6 @@ export function __resetMockApi(overrides?: MockApiConfig): void {
 	rfqStore = INITIAL_RFQS.map((r) => ({ ...r }));
 	sequenceCounters.clear();
 	INITIAL_RFQS.forEach((r) => sequenceCounters.set(r.id, r.sequenceNumber));
-	scenarioIndex = 0;
 	config = { ...DEFAULT_CONFIG, ...overrides };
 }
 

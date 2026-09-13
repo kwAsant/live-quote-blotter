@@ -6,10 +6,13 @@ test.describe('FX Blotter Browser Pipeline Validations', () => {
         await page.goto('http://localhost:5173/');
     });
 
-    test('8. Page loads correctly, applies filters, and completes full accept execution workflow loops', async ({ page }) => {
+    test('Page loads correctly, applies filters, and completes full accept execution workflow loops', async ({ page }) => {
         // A. Prove layout header mounts successfully
-        const mainTitle = page.locator('.app-header h2');
-        await expect(mainTitle).toHaveText('FX Option Live Quote Blotter');
+        const mainTitle = page.getByRole('heading', {
+            name: 'FX Option Live Quote Blotter',
+            level: 1,
+        });
+        await expect(mainTitle).toBeVisible();
         
         // B. Select the first actionable quote row button that is not locked
         const actionableButton = page.locator('.rfq-row button:not([disabled])').first();

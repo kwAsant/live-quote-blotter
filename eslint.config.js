@@ -11,7 +11,7 @@ export default defineConfig([
   // Block 1: Strict Type-Aware linting ONLY for your main app code
   {
     files: ['src/**/*.{ts,tsx}'],
-    ignores: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'], // Ignore tests here!
+    ignores: ['coverage/**', 'dist/**', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'], // Ignore tests here!
     extends: [
       js.configs.recommended,
       tseslint.configs.recommendedTypeChecked,
