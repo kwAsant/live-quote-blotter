@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchRfqs, subscribeToQuoteUpdates } from '../../mock-api';
 import { useTimer } from './useTimer';
-import type { Rfq, QuoteUpdate } from '../../mock-api';
+import type { Rfq, QuoteUpdate } from '../../mock-api/types';
 
 export const useRfqStream = () => {
     const [rfqs, setRfqs] = useState<Rfq[]>([]);
@@ -45,7 +45,13 @@ export const useRfqStream = () => {
         const unsubscribe = subscribeToQuoteUpdates((update: QuoteUpdate) => {
             setRfqs((currentRfqs) => {
                 const existingRfqIndex = currentRfqs.findIndex((item) => item.id === update.rfqId);
-                if (existingRfqIndex === -1) return currentRfqs;
+                if (existingRfqIndex === -1) {
+                    if (update.rfq) {
+                        return [update.rfq, ...currentRfqs];
+                    }
+
+                    return currentRfqs;
+                }
 
                 const existingRfq = currentRfqs[existingRfqIndex];
                 if (update.sequenceNumber <= existingRfq.sequenceNumber) return currentRfqs;
