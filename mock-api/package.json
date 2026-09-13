@@ -1,0 +1,17 @@
+{
+  "name": "@spectrafx-hiring/live-quote-blotter-mock-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Event-driven mock API for the Live Quote Blotter graduate technical task",
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "optionalDependencies": {
+    "rxjs": "^6.2.2 || ^7.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
