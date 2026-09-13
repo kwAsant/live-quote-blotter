@@ -17,39 +17,68 @@ export const QuoteBlotterTable: React.FC<QuoteBlotterTableProps> = ({
     currentTime,
     onAcceptQuote,
 }) => {
-  if (loading) return <div role="status">Loading live market data...</div>;
-  if (error) return <div role="alert">Error: {error}</div>;
-  if (rfqs.length === 0) return <div>No active quotes.</div>;
+    if (loading) {
+        return (
+            <div className="table-state" role="status">
+                Loading live market data...
+            </div>
+        );
+    }
 
-  return (
-    <div className="table-responsive-container">
-        <table className="blotter-table">
-            <colgroup>
-                <col /><col /><col /><col /><col /><col /><col /><col />
-            </colgroup>
-            <thead>
-            <tr>
-                <th>Updated</th>
-                <th>Pair</th>
-                <th>Dir</th>
-                <th>Notional</th>
-                <th>Expiry (UTC)</th>
-                <th>Status</th>
-                <th>Exec Price</th>
-                <th></th>
-            </tr>
-            </thead>
-            <tbody>
-            {rfqs.map((rfq) => (
-                <QuoteRow 
-                key={rfq.id} 
-                rfq={rfq} 
-                currentTime={currentTime} // <-- Pass it into the row
-                onAcceptClick={onAcceptQuote} 
-                />
-            ))}
-            </tbody>
-        </table>
-    </div>
+    if (error) {
+        return (
+            <div className="table-state table-state-error" role="alert">
+                Error: {error}
+            </div>
+        );
+    }
+
+    if (rfqs.length === 0) {
+        return (
+            <div className="table-state">
+                No active quotes.
+            </div>
+        );
+    }
+
+    return (
+        <div className="table-responsive-container">
+            <table className="blotter-table">
+                <colgroup>
+                    <col />
+                    <col />
+                    <col />
+                    <col />
+                    <col />
+                    <col />
+                    <col />
+                    <col />
+                </colgroup>
+
+                <thead>
+                    <tr>
+                        <th>Updated</th>
+                        <th>Pair</th>
+                        <th>Dir</th>
+                        <th>Notional</th>
+                        <th>Expiry (UTC)</th>
+                        <th>Status</th>
+                        <th>Exec Price</th>
+                        <th aria-label="Actions"></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {rfqs.map((rfq) => (
+                        <QuoteRow
+                            key={rfq.id}
+                            rfq={rfq}
+                            currentTime={currentTime}
+                            onAcceptClick={onAcceptQuote}
+                        />
+                    ))}
+                </tbody>
+            </table>
+        </div>
     );
 };
