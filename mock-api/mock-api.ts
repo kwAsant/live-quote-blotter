@@ -10,16 +10,33 @@ import type {
 export interface MockApiConfig {
 	/** Artificial latency for fetchRfqs (ms). Default 600. */
 	fetchDelayMs?: number;
+
 	/** Probability [0–1] that fetchRfqs rejects. Default 0. */
 	fetchFailureRate?: number;
+
 	/** Interval between scheduled live updates (ms). Default 2000. Set 0 to disable auto stream. */
 	updateIntervalMs?: number;
+
 	/** Probability [0–1] that acceptQuote rejects. Default 0.1. */
 	acceptFailureRate?: number;
+
+	/** Probability [0–1] that a quoted RFQ gets rejected during simulation. */
+	rejectionProbability?: number;
+
 	/** RFQ ids that always fail accept (e.g. for deterministic tests). */
 	acceptAlwaysFailIds?: string[];
+
 	/** When true, fetchRfqs resolves with an empty array (empty-state tests). */
 	fetchReturnsEmpty?: boolean;
+
+	/** Probability [0–1] that a new RFQ is created on each simulation tick. */
+	newRfqProbability?: number;
+
+	/** Maximum number of RFQs held in the simulated blotter. */
+	maxRfqs?: number;
+
+	/** Probability [0–1] that an existing RFQ receives a new quote. */
+	quoteUpdateProbability?: number;
 }
 
 const DEFAULT_CONFIG: Required<MockApiConfig> = {
@@ -27,6 +44,10 @@ const DEFAULT_CONFIG: Required<MockApiConfig> = {
 	fetchFailureRate: 0,
 	updateIntervalMs: 2000,
 	acceptFailureRate: 0.1,
+	rejectionProbability: 0.08,
+	newRfqProbability: 0.35,
+	maxRfqs: 8,
+	quoteUpdateProbability: 0.75,
 	acceptAlwaysFailIds: ['rfq-007'],
 	fetchReturnsEmpty: false,
 };
@@ -53,6 +74,64 @@ const nextSequence = (rfqId: string): number => {
 	const next = current + 1;
 	sequenceCounters.set(rfqId, next);
 	return next;
+};
+
+const randomItem = <T,>(items: T[]): T =>
+    items[Math.floor(Math.random() * items.length)];
+
+const daysFromNow = (days: number): string => {
+	const d = new Date();
+	d.setUTCDate(d.getUTCDate() + days);
+	return d.toISOString().slice(0, 10);
+};
+
+const CURRENCY_PAIRS = [
+    'EUR/USD',
+    'GBP/USD',
+    'USD/JPY',
+    'USD/CAD',
+    'AUD/USD',
+    'EUR/GBP',
+];
+
+
+
+const randomNotional = (): number => {
+    const amounts = [
+        500_000,
+        750_000,
+        1_000_000,
+        1_500_000,
+        2_000_000,
+        2_500_000,
+        3_000_000,
+        4_000_000,
+        5_000_000,
+    ];
+
+    return randomItem(amounts);
+};
+
+const createMockRfq = (): Rfq => {
+    const id = `rfq-${String(Date.now())}`;
+
+    const currencyPair = randomItem(CURRENCY_PAIRS);
+    const direction: Rfq['direction'] =
+        Math.random() < 0.5 ? 'Buy' : 'Sell';
+
+    const sequenceNumber = 0;
+
+    return {
+        id,
+        currencyPair,
+        direction,
+        notional: randomNotional(),
+        expiry: daysFromNow(
+            Math.floor(Math.random() * 30) + 1
+        ),
+        status: 'Open',
+        sequenceNumber,
+    };
 };
 
 const emit = (update: QuoteUpdate): void => {
@@ -92,6 +171,83 @@ const applyUpdateToStore = (update: QuoteUpdate): void => {
 		sequenceNumber: update.sequenceNumber,
 	};
 };
+
+const runNextScenario = (): void => {
+	const scenario = UPDATE_SCENARIOS[scenarioIndex % UPDATE_SCENARIOS.length];
+	scenarioIndex += 1;
+	const result = scenario();
+	const updates = Array.isArray(result) ? result : [result];
+	updates.forEach((u) => {
+		applyUpdateToStore(u);
+		emit(u);
+	});
+};
+
+const processRandomLifecycleEvent = (): void => {
+    const candidates = rfqStore.filter(
+        (rfq) =>
+            rfq.status === 'Quoted' ||
+            rfq.status === 'Open'
+    );
+
+    if (candidates.length === 0) {
+        return;
+    }
+
+    const rfq = randomItem(candidates);
+
+    if (rfq.status === 'Quoted' &&
+        Math.random() < config.rejectionProbability) {
+
+        const update: QuoteUpdate = {
+            rfqId: rfq.id,
+            status: 'Rejected',
+            lastUpdated: new Date().toISOString(),
+            sequenceNumber: nextSequence(rfq.id),
+        };
+
+        applyUpdateToStore(update);
+        emit(update);
+
+        return;
+    }
+
+    // Occasionally expire quotes whose expiry date has passed.
+    if (rfq.expiry <= new Date().toISOString().slice(0, 10)) {
+        const update: QuoteUpdate = {
+            rfqId: rfq.id,
+            status: 'Expired',
+            lastUpdated: new Date().toISOString(),
+            sequenceNumber: nextSequence(rfq.id),
+        };
+
+        applyUpdateToStore(update);
+        emit(update);
+    }
+};
+
+const createAndEmitRfq = (): void => {
+	if (rfqStore.length >= config.maxRfqs) {
+		return;
+	}
+
+	const rfq = createMockRfq();
+
+	rfqStore.push(rfq);
+
+	sequenceCounters.set(rfq.id, 0);
+
+	const event: QuoteUpdate = {
+		rfqId: rfq.id,
+		rfq,
+		status: 'Open',
+		lastUpdated: new Date().toISOString(),
+		sequenceNumber: 0,
+	};
+
+	emit(event);
+};
+
 
 /** Scripted update scenarios — includes out-of-order delivery. */
 const UPDATE_SCENARIOS: Array<() => QuoteUpdate | QuoteUpdate[]> = [
@@ -181,20 +337,66 @@ const UPDATE_SCENARIOS: Array<() => QuoteUpdate | QuoteUpdate[]> = [
 
 let scenarioIndex = 0;
 
-const runNextScenario = (): void => {
-	const scenario = UPDATE_SCENARIOS[scenarioIndex % UPDATE_SCENARIOS.length];
-	scenarioIndex += 1;
-	const result = scenario();
-	const updates = Array.isArray(result) ? result : [result];
-	updates.forEach((u) => {
-		applyUpdateToStore(u);
-		emit(u);
-	});
+const runSimulationTick = (): void => {
+    // New RFQ arrives
+    if (Math.random() < config.newRfqProbability) {
+        createAndEmitRfq();
+    }
+
+    // Existing RFQ gets a new price
+    if (Math.random() < config.quoteUpdateProbability) {
+        updateRandomRfq();
+    }
+
+    // Occasionally transition an RFQ
+    if (Math.random() < 0.15) {
+        processRandomLifecycleEvent();
+    }
+};
+
+const updateRandomRfq = (): void => {
+    const candidates = rfqStore.filter(
+        (rfq) =>
+            rfq.status === 'Open' ||
+            rfq.status === 'Quoted'
+    );
+
+    if (candidates.length === 0) {
+        return;
+    }
+
+    const rfq = randomItem(candidates);
+
+    const sequenceNumber = nextSequence(rfq.id);
+    const now = new Date().toISOString();
+
+    const basePrice = 0.08 + Math.random() * 0.06;
+    const spread = 0.002 + Math.random() * 0.003;
+
+    const bid = Number(basePrice.toFixed(4));
+    const offer = Number(
+        (basePrice + spread).toFixed(4)
+    );
+
+    const update: QuoteUpdate = {
+        rfqId: rfq.id,
+        bid,
+        offer,
+        status: 'Quoted',
+        lastUpdated: now,
+        sequenceNumber,
+    };
+
+    applyUpdateToStore(update);
+    emit(update);
 };
 
 const startUpdateStream = (): void => {
 	if (config.updateIntervalMs <= 0 || updateTimer) return;
-	updateTimer = setInterval(runNextScenario, config.updateIntervalMs);
+	updateTimer = setInterval(
+		runSimulationTick,
+		config.updateIntervalMs
+	);
 };
 
 const stopUpdateStream = (): void => {
@@ -315,3 +517,5 @@ export function __emitQuoteUpdate(update: QuoteUpdate): void {
 export function __getRfqsSnapshot(): Rfq[] {
 	return cloneRfqs();
 }
+
+

@@ -18,13 +18,21 @@ export interface Rfq {
 	sequenceNumber: number;
 }
 
+export type QuoteUpdateType =
+    | 'created'
+    | 'updated'
+    | 'rejected'
+    | 'expired';
+
 export interface QuoteUpdate {
-	rfqId: string;
-	bid?: number;
-	offer?: number;
-	status?: RfqStatus;
-	lastUpdated: string;
-	sequenceNumber: number;
+    rfqId: string;
+    type?: QuoteUpdateType;
+    rfq?: Rfq;
+    bid?: number;
+    offer?: number;
+    status?: RfqStatus;
+    lastUpdated: string;
+    sequenceNumber: number;
 }
 
 export type Unsubscribe = () => void;
