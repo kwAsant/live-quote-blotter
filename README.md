@@ -1,6 +1,8 @@
 # Real-Time FX Option Live Quote Blotter
 
-A simulated real-time FX Option Request-For-Quote (RFQ) blotter built with **React, TypeScript, and Vite**.
+[![Live Demo](https://img.shields.io/badge/Live-Demo-blue?style=for-the-badge)](https://kwAsant.github.io/live-quote-blotter/)
+
+A simulated real-time FX option RFQ blotter built with React and TypeScript.
 
 The application models a trading-style interface where FX option RFQs are received, updated, filtered, sorted, and executed through a confirmation workflow. It includes simulated quote streaming, sequence-number handling, stale-price protection, asynchronous execution, and an execution audit log.
 
